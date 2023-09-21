@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <img
+  src="images/lion-banner.png"
+          alt="Telus brand"
+          width="700"
+          height="350"
+        />
+    <body style="background-color:rgb(212, 176, 220)" ></body>
+  <title>Mentors Assistance Management</title>
+  <style>
+    .group-item {
+      margin-bottom: 38px;
+      border: 5px solid #0a0a0a;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    .group-name {
+      font-weight: bold;
+    }
+
+    .mentor-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      padding: 10px;
+      border: 3px solid #0e0a0a;
+      border-radius: 5px;
+    }
+
+    .mentor-name {
+  flex-grow: 1; /* Allow mentor name to grow and take available space */
+    }
+
+    .status-indicator {
+      width: 35px;
+      height: 35px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+
+    .status-available {
+      background-color: green;
+    }
+
+    .status-busy {
+      background-color: pink;
+    }
+
+    .status-lunch {
+      background-color: yellow;
+    }
+
+    .status-logoff {
+      background-color: gray;
+    }
+
+    .mentor-actions button {
+      margin-left: 10px;
+    }
+
+    .signature {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 16px;
+      color: #110d0d;
+    }
+  </style>
+</head>
+<body>
+  <h1>Mentors Assistance Management</h1>
+  <div>
+    <input type="text" id="group-input" placeholder="Enter group name">
+    <button id="add-group">Add Group</button>
+  </div>
+  <div id="group-list"></div>
+  <div class="signature">By Jared :)</div>
+
+  <script>
+    let groups = [];
+
+    const groupInput = document.getElementById('group-input');
+    const addGroupButton = document.getElementById('add-group');
+    const groupList = document.getElementById('group-list');
+
+    addGroupButton.addEventListener('click', function() {
+      const groupName = groupInput.value;
+      if (groupName) {
+        addGroup(groupName);
+        groupInput.value = '';
+      }
+    });
+
+    function addGroup(groupName) {
+      const group = {
+        name: groupName,
+        mentors: []
+      };
+      groups.push(group);
+      saveGroups();
+      renderGroup(group);
+    }
+
+    function saveGroups() {
+      localStorage.setItem('groups', JSON.stringify(groups));
+    }
+
+    function loadGroups() {
+      const savedGroups = localStorage.getItem('groups');
+      if (savedGroups) {
+        groups = JSON.parse(savedGroups);
+        groups.forEach(renderGroup);
+      }
+    }
+
+    function renderGroup(group) {
+      const groupItem = document.createElement('div');
+      groupItem.classList.add('group-item');
+
+      const groupNameSpan = document.createElement('span');
+      groupNameSpan.classList.add('group-name');
+      groupNameSpan.textContent = group.name;
+      groupItem.appendChild(groupNameSpan);
+
+      const mentorInput = document.createElement('input');
+      mentorInput.type = 'text';
+      mentorInput.placeholder = 'Enter mentor name';
+      groupItem.appendChild(mentorInput);
+
+      const addMentorButton = document.createElement('button');
+      addMentorButton.textContent = 'Add Mentor';
+      addMentorButton.addEventListener('click', function() {
+        const mentorName = mentorInput.value;
+        if (mentorName) {
+          addMentor(group.name, mentorName);
+          mentorInput.value = '';
+        }
+      });
+      groupItem.appendChild(addMentorButton);
+
+      const deleteGroupButton = document.createElement('button');
+      deleteGroupButton.textContent = 'Delete Group';
+      deleteGroupButton.addEventListener('click', function() {
+        deleteGroup(group.name);
+      });
+      groupItem.appendChild(deleteGroupButton);
+
+      const mentorList = document.createElement('div');
+      mentorList.classList.add('mentor-list');
+      groupItem.appendChild(mentorList);
+
+      group.mentors.forEach(function(mentor) {
+        renderMentor(group, mentor);
+      });
+
+      groupList.appendChild(groupItem);
+    }
+
+    function addMentor(groupName, mentorName) {
+      const group = findGroupByName(groupName);
+      if (group) {
+        const mentor = {
+          name: mentorName,
+          status: 'available',
+          statusStart: new Date(),
+          timeCounter: null
+        };
+        group.mentors.push(mentor);
+        saveGroups();
+        renderMentor(group, mentor);
+      }
+    }
+
+    function renderMentor(group, mentor) {
+      const groupItem = findGroupItem(group);
+      if (groupItem) {
+        const mentorItem = document.createElement('div');
+        mentorItem.classList.add('mentor-item');
+
+        const mentorNameSpan = document.createElement('span');
+        mentorNameSpan.classList.add('mentor-name');
+        mentorNameSpan.textContent = mentor.name;
+        mentorItem.appendChild(mentorNameSpan);
+
+        const statusIndicator = document.createElement('div');
+        statusIndicator.classList.add('status-indicator');
+        setStatusColor(statusIndicator, mentor.status);
+        mentorItem.appendChild(statusIndicator);
+
+        const timeCounter = document.createElement('span');
+        mentorItem.appendChild(timeCounter);
+
+        const statusSelect = document.createElement('select');
+        statusSelect.addEventListener('change', function() {
+          if (mentor.timeCounter) {
+            clearInterval(mentor.timeCounter);
+          }
+          mentor.status = statusSelect.value;
+          mentor.statusStart = new Date();
+          setStatusColor(statusIndicator, mentor.status);
+          updateTimeCounter(timeCounter, mentor.status, mentor.statusStart, mentor);
+          saveGroups();
+        });
+        ['available', 'busy', 'lunch', 'logoff'].forEach(function(status) {
+          const option = document.createElement('option');
+          option.value = status;
+          option.textContent = status;
+          statusSelect.appendChild(option);
+        });
+        statusSelect.value = mentor.status;
+        mentorItem.appendChild(statusSelect);
+
+        const deleteMentorButton = document.createElement('button');
+        deleteMentorButton.textContent = 'Delete Mentor';
+        deleteMentorButton.addEventListener('click', function() {
+          deleteMentor(group.name, mentor.name);
+        });
+        mentorItem.appendChild(deleteMentorButton);
+
+        const mentorList = groupItem.querySelector('.mentor-list');
+        mentorList.appendChild(mentorItem);
+
+        updateTimeCounter(timeCounter, mentor.status, mentor.statusStart, mentor);
+      }
+    }
+
+    function deleteGroup(groupName) {
+      const group = findGroupByName(groupName);
+      if (group) {
+        const groupItem = findGroupItem(group);
+        if (groupItem) {
+          groupList.removeChild(groupItem);
+        }
+        groups = groups.filter(function(g) {
+          return g.name !== groupName;
+        });
+        saveGroups();
+      }
+    }
+
+    function deleteMentor(groupName, mentorName) {
+      const group = findGroupByName(groupName);
+      if (group) {
+        group.mentors = group.mentors.filter(function(mentor) {
+          return mentor.name !== mentorName;
+        });
+        const groupItem = findGroupItem(group);
+        if (groupItem) {
+          const mentorItem = findMentorItem(groupItem, mentorName);
+          if (mentorItem) {
+            const mentorList = groupItem.querySelector('.mentor-list');
+            mentorList.removeChild(mentorItem);
+          }
+        }
+        saveGroups();
+      }
+    }
+
+    function setStatusColor(element, status) {
+      element.classList.remove('status-available', 'status-busy', 'status-lunch', 'status-logoff');
+      switch (status) {
+        case 'available':
+          element.classList.add('status-available');
+          break;
+        case 'busy':
+          element.classList.add('status-busy');
+          break;
+        case 'lunch':
+          element.classList.add('status-lunch');
+          break;
+        case 'logoff':
+          element.classList.add('status-logoff');
+          break;
+        default:
+          break;
+      }
+    }
+
+    function updateTimeCounter(element, status, startTime, mentor) {
+      if (mentor.timeCounter) {
+        clearInterval(mentor.timeCounter);
+      }
+      mentor.timeCounter = setInterval(function() {
+        const currentTime = new Date();
+        const timeDiff = currentTime - startTime;
+        const minutes = Math.floor(timeDiff / 60000);
+        const seconds = Math.floor((timeDiff % 60000) / 1000);
+        element.textContent = `(${minutes}:${seconds < 10 ? '0' : ''}${seconds})`;
+      }, 1000);
+    }
+
+    function findGroupByName(groupName) {
+      return groups.find(function(group) {
+        return group.name === groupName;
+      });
+    }
+
+    function findGroupItem(group) {
+      const groupItems = document.querySelectorAll('.group-item');
+      for (let i = 0; i < groupItems.length; i++) {
+        const groupNameSpan = groupItems[i].querySelector('.group-name');
+        if (groupNameSpan.textContent === group.name) {
+          return groupItems[i];
+        }
+      }
+      return null;
+    }
+
+    function findMentorItem(groupItem, mentorName) {
+      const mentorItems = groupItem.querySelectorAll('.mentor-item');
+      for (let i = 0; i < mentorItems.length; i++) {
+        const mentorNameSpan = mentorItems[i].querySelector('.mentor-name');
+        if (mentorNameSpan.textContent === mentorName) {
+          return mentorItems[i];
+        }
+      }
+      return null;
+    }
+
+    loadGroups();
+  </script>
+</body>
+</html>
